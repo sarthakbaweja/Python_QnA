@@ -13,7 +13,7 @@ load_dotenv()
 
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", "python_qna")
 VECTOR_SIZE = 384  # BAAI/bge-small-en output dimension
-BATCH_SIZE = 256
+BATCH_SIZE = 32
 DATA_DIR = os.getenv("DATA_DIR", "/app/data")
 INDEX_LIMIT = int(os.getenv("INDEX_LIMIT", "0"))  # 0 = no limit
 
@@ -51,7 +51,20 @@ def load_answers(answers_path: str) -> dict[int, list[dict]]:
     return {int(pid): group.to_dict("records") for pid, group in grouped}
 
 
-def run_indexing(questions_path: str, answers_path: str) -> None:
+def load_tags(tags_path: str) -> dict[int, list[str]]:
+    print("Loading tags into memory...")
+    df = pd.read_csv(
+        tags_path,
+        usecols=["Id", "Tag"],
+        dtype={"Id": "int64", "Tag": "str"},
+        encoding="utf-8",
+        encoding_errors="replace",
+    )
+    grouped = df.groupby("Id")["Tag"].apply(list)
+    return {int(qid): tags for qid, tags in grouped.items()}
+
+
+def run_indexing(questions_path: str, answers_path: str, tags_path: str) -> None:
     client = get_client()
 
     if collection_populated(client):
@@ -71,6 +84,7 @@ def run_indexing(questions_path: str, answers_path: str) -> None:
             raise
 
     answers_by_qid = load_answers(answers_path)
+    tags_by_qid = load_tags(tags_path)
     embedding_model = TextEmbedding(model_name="BAAI/bge-small-en")
 
     print("Indexing questions...")
@@ -95,7 +109,8 @@ def run_indexing(questions_path: str, answers_path: str) -> None:
                 break
             q_id = int(row["Id"])
             answers = answers_by_qid.get(q_id, [])
-            text = format_chunk(row.to_dict(), answers)
+            tags = tags_by_qid.get(q_id, [])
+            text = format_chunk(row.to_dict(), answers, tags)
             batch_texts.append(text)
             batch_payloads.append({
                 "text": text,
@@ -103,6 +118,7 @@ def run_indexing(questions_path: str, answers_path: str) -> None:
                 "title": str(row["Title"]),
                 "question_score": int(row["Score"]),
                 "answer_count": len(answers),
+                "tags": tags,
             })
 
         if len(batch_texts) >= BATCH_SIZE:
@@ -140,4 +156,5 @@ def _upsert_batch(
 if __name__ == "__main__":
     questions_path = os.path.join(DATA_DIR, "Questions.csv")
     answers_path = os.path.join(DATA_DIR, "Answers.csv")
-    run_indexing(questions_path, answers_path)
+    tags_path = os.path.join(DATA_DIR, "Tags.csv")
+    run_indexing(questions_path, answers_path, tags_path)

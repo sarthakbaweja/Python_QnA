@@ -50,6 +50,7 @@ def retrieve(state: GraphState) -> dict:
                 "question_title": r["title"],
                 "question_id": r["question_id"],
                 "score": r["question_score"],
+                "tags": r.get("tags", []),
             }
             for r in results
         ],

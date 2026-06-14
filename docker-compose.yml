@@ -16,7 +16,7 @@ services:
       - QDRANT_API_KEY=${QDRANT_API_KEY:-}
       - QDRANT_USE_TLS=${QDRANT_USE_TLS:-false}
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-python_qna}
-      - INDEX_LIMIT=${INDEX_LIMIT:-5}
+      - INDEX_LIMIT=${INDEX_LIMIT:-0}
     restart: "no"
 
   backend:

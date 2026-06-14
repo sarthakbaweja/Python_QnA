@@ -54,6 +54,7 @@ def search_similar(
             "question_id": hit.payload.get("question_id"),
             "title": hit.payload.get("title"),
             "question_score": hit.payload.get("question_score", 0),
+            "tags": hit.payload.get("tags", []),
         }
         for hit in results
     ]

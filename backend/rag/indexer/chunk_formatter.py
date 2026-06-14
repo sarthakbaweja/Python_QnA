@@ -9,11 +9,14 @@ def strip_html(html: str) -> str:
     return " ".join(text.split())
 
 
-def format_chunk(question: dict, answers: list[dict]) -> str:
+def format_chunk(question: dict, answers: list[dict], tags: list[str] | None = None) -> str:
     title = str(question.get("Title", ""))
     body = strip_html(question.get("Body", ""))
 
     parts = [f"Question: {title}\n{body}"]
+
+    if tags:
+        parts.append(f"Tags: {', '.join(tags)}")
 
     if not answers:
         return "\n".join(parts)

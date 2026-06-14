@@ -8,6 +8,7 @@ skills-lock.json
 data/*
 !data/.gitkeep
 *.csv
+data_full
 
 # Python
 __pycache__/

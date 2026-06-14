@@ -6,6 +6,7 @@ class Source(BaseModel):
     question_title: str
     question_id: int
     score: int
+    tags: list[str] = []
 
 
 class AskRequest(BaseModel):
