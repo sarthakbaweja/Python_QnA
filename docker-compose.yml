@@ -1,0 +1,48 @@
+version: "3.9"
+
+# Local dev only. Connects to Qdrant Cloud — no local Qdrant container.
+# Set QDRANT_HOST, QDRANT_API_KEY, QDRANT_USE_TLS=true in .env for Qdrant Cloud.
+
+services:
+  indexer:
+    build:
+      context: .
+      dockerfile: rag/indexer/Dockerfile
+    volumes:
+      - ./data:/app/data:ro
+    environment:
+      - QDRANT_HOST=${QDRANT_HOST:-localhost}
+      - QDRANT_PORT=${QDRANT_PORT:-6333}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - QDRANT_USE_TLS=${QDRANT_USE_TLS:-false}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-python_qna}
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.1-70b-versatile}
+      - QDRANT_HOST=${QDRANT_HOST:-localhost}
+      - QDRANT_PORT=${QDRANT_PORT:-6333}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - QDRANT_USE_TLS=${QDRANT_USE_TLS:-false}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-python_qna}
+      - ACTIVE_PROMPT_VERSION=${ACTIVE_PROMPT_VERSION:-v1}
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped

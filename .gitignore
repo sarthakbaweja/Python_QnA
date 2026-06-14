@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Superpowers plugin config (tooling, not project code)
+skills-lock.json
+
+# Dataset (too large for git)
+data/*
+!data/.gitkeep
+*.csv
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# Qdrant local storage
+qdrant_storage/
+
+# Archives
+*.zip
