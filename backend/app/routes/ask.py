@@ -3,7 +3,7 @@ from langchain_core.messages import HumanMessage
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from backend.app.schemas.chat import AskRequest, AskResponse, HealthResponse
+from app.schemas.chat import AskRequest, AskResponse, HealthResponse
 from rag.pipeline.graph import graph
 from rag.retriever.qdrant_client import get_qdrant_client
 

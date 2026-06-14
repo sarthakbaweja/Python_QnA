@@ -9,5 +9,5 @@ os.environ.setdefault("FRONTEND_URL", "http://localhost:8501")
 
 @pytest.fixture
 def client():
-    from backend.app.main import app
+    from app.main import app
     return TestClient(app)

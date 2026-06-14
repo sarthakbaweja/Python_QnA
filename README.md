@@ -44,8 +44,8 @@ data/
 This runs the indexer against your Qdrant Cloud cluster. Only needed once — the collection persists in Qdrant Cloud.
 
 ```bash
-pip install -r rag/indexer/requirements.txt
-PYTHONPATH=. DATA_DIR=data python -m rag.indexer.index_dataset
+pip install -r backend/rag/indexer/requirements.txt
+PYTHONPATH=backend DATA_DIR=data python -m rag.indexer.index_dataset
 ```
 
 Takes ~15–30 min for the full dataset. Subsequent runs are skipped automatically (idempotency check).
@@ -70,13 +70,13 @@ docker-compose up --build
 docker run -p 6333:6333 qdrant/qdrant
 
 # 2. Index dataset (one-time)
-pip install -r rag/indexer/requirements.txt
-PYTHONPATH=. DATA_DIR=data QDRANT_HOST=localhost python -m rag.indexer.index_dataset
+pip install -r backend/rag/indexer/requirements.txt
+PYTHONPATH=backend DATA_DIR=data QDRANT_HOST=localhost python -m rag.indexer.index_dataset
 
 # 3. Start backend
 pip install -r backend/requirements.txt
-PYTHONPATH=. GROQ_API_KEY=your_key QDRANT_HOST=localhost \
-    uvicorn backend.app.main:app --reload --port 8000
+PYTHONPATH=backend GROQ_API_KEY=your_key QDRANT_HOST=localhost \
+    uvicorn app.main:app --reload --port 8000
 
 # 4. Start frontend (new terminal)
 pip install -r frontend/requirements.txt
@@ -89,10 +89,10 @@ BACKEND_URL=http://localhost:8000 streamlit run frontend/app.py
 
 ```bash
 # Unit tests (no services required)
-PYTHONPATH=. pytest backend/tests/ rag/tests/ -v -m "not integration"
+PYTHONPATH=backend pytest tests/ rag/tests/ -v -m "not integration"
 
 # Integration tests (requires Qdrant + indexed data)
-PYTHONPATH=. pytest rag/tests/test_retriever.py -v -m integration
+PYTHONPATH=backend pytest rag/tests/test_retriever.py -v -m integration
 ```
 
 ---

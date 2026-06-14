@@ -5,7 +5,7 @@ WORKDIR /app
 COPY rag/indexer/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY rag/ ./rag/
+COPY . .
 
 ENV PYTHONPATH=/app
 
