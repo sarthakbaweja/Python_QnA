@@ -171,3 +171,6 @@ python_qna/
 - Answer correctness eval: compare LLM-generated answer against Stack Overflow accepted answer using an LLM judge scoring factual overlap (no reference implementation needed — ground truth already in Answers.csv)
 - Loop-until-dry adversarial eval: spawn multiple independent LLM judges per answer to refute faithfulness claims; flag answers where majority vote says hallucination — catches edge cases single-judge RAGAS misses
 - Latency profiling: instrument retrieval and LLM stages separately; assert p95 retrieval < 500ms and p95 end-to-end < 5s as part of the eval suite
+- Persistent chat history: store conversation turns in IndexedDB (browser-side) so history survives page reloads and is restored on next visit without a backend round-trip
+- Authentication: JWT-based auth (FastAPI + python-jose); Streamlit login gate; session_id tied to authenticated user so chat history is per-user and portable across devices
+- Observability with LangSmith: wrap LangGraph pipeline with LangSmith tracing to get per-node latency, token counts, and retrieval context visibility in the LangSmith dashboard — swap `LANGCHAIN_TRACING_V2=true` + `LANGCHAIN_API_KEY` env vars to enable
