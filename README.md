@@ -164,3 +164,5 @@ python_qna/
 - Router + RAG: LLM decides whether retrieval is needed per question
 - Agent mode: Qdrant retrieval as a tool with re-query capability
 - Redis sessions: persist conversation state across container restarts
+- Tag-based filtering: extract tags from user query, use as Qdrant payload pre-filter before vector search; or expose as a user-controlled dropdown in the frontend
+- Hybrid retrieval + reranking: combine dense vector search (current) with sparse BM25 keyword search, then rerank merged results with a cross-encoder (e.g. `BAAI/bge-reranker-base`) before passing context to the LLM
