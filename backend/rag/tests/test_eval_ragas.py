@@ -1,40 +1,42 @@
 """
-RAGAS eval — faithfulness and answer relevancy.
+RAGAS quality eval — faithfulness and answer relevancy.
 
-Samples N questions, runs retrieval + LLM generation, then scores with RAGAS
-using Groq as the judge LLM and FastEmbed for embeddings.
-
-Metrics:
-  faithfulness      — fraction of answer claims supported by retrieved context
-  answer_relevancy  — how well the answer addresses the original question
-
-Usage:
-    PYTHONPATH=backend python evals/eval_ragas.py
-    PYTHONPATH=backend python evals/eval_ragas.py --n 25
+Requires: live Qdrant with indexed data, GROQ_API_KEY, ragas installed
+Install:  pip install -r evals/requirements.txt
+Run:      PYTHONPATH=backend pytest rag/tests/test_eval_ragas.py -v -m eval -s
 """
-import argparse
 import os
+from pathlib import Path
 
 import pandas as pd
+import pytest
 from dotenv import load_dotenv
+
+load_dotenv()
+
+pytest.importorskip("ragas", reason="ragas not installed; run: pip install -r evals/requirements.txt")
+
 from langchain_core.embeddings import Embeddings
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
+from fastembed import TextEmbedding
 from ragas import EvaluationDataset, SingleTurnSample, evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import AnswerRelevancy, Faithfulness
-from fastembed import TextEmbedding
-
-load_dotenv()
 
 from rag.prompts import v1 as prompts
 from rag.retriever.qdrant_client import get_embedding_model, get_qdrant_client, search_similar
 
-DATA_DIR = os.getenv("DATA_DIR", "data")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-TOP_K = 5
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DATA_DIR = os.getenv("DATA_DIR", str(PROJECT_ROOT / "data"))
+
+_N = 25
+_TOP_K = 5
+_SEED = 42
+
+MIN_FAITHFULNESS = 0.70
+MIN_ANSWER_RELEVANCY = 0.70
 
 
 class _FastEmbedLangchain(Embeddings):
@@ -54,48 +56,43 @@ def _generate_answer(llm: ChatGroq, question: str, contexts: list[str]) -> str:
     context_text = "\n\n---\n\n".join(contexts)
     context_block = prompts.RETRIEVAL_CONTEXT_TEMPLATE.format(context=context_text)
     system_msg = SystemMessage(content=prompts.SYSTEM_PROMPT + "\n\n" + context_block)
-    response = llm.invoke([system_msg, HumanMessage(content=question)])
-    return response.content
+    return llm.invoke([system_msg, HumanMessage(content=question)]).content
 
 
-def run(n: int, seed: int) -> None:
+@pytest.mark.eval
+def test_ragas_faithfulness_and_relevancy():
+    groq_key = os.getenv("GROQ_API_KEY")
+    if not groq_key:
+        pytest.skip("GROQ_API_KEY not set")
+
     df = pd.read_csv(
         os.path.join(DATA_DIR, "Questions.csv"),
         usecols=["Id", "Title"],
         encoding="utf-8",
         encoding_errors="replace",
     )
-    sample = df.sample(n=min(n, len(df)), random_state=seed).reset_index(drop=True)
-    n_actual = len(sample)
+    sample = df.sample(n=min(_N, len(df)), random_state=_SEED).reset_index(drop=True)
 
     client = get_qdrant_client()
     retrieval_model = get_embedding_model()
-    llm = ChatGroq(model=GROQ_MODEL, api_key=GROQ_API_KEY, temperature=0.1)
-
+    llm = ChatGroq(
+        model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        api_key=groq_key,
+        temperature=0.1,
+    )
     ragas_llm = LangchainLLMWrapper(llm)
     ragas_embeddings = LangchainEmbeddingsWrapper(_FastEmbedLangchain())
 
-    print(f"Generating answers for {n_actual} questions...")
     ragas_samples: list[SingleTurnSample] = []
-
-    for i, row in sample.iterrows():
+    for _, row in sample.iterrows():
         question = str(row["Title"])
-        results = search_similar(question, client, retrieval_model, top_k=TOP_K)
+        results = search_similar(question, client, retrieval_model, top_k=_TOP_K)
         contexts = [r["text"] for r in results]
         answer = _generate_answer(llm, question, contexts)
-
         ragas_samples.append(
-            SingleTurnSample(
-                user_input=question,
-                retrieved_contexts=contexts,
-                response=answer,
-            )
+            SingleTurnSample(user_input=question, retrieved_contexts=contexts, response=answer)
         )
 
-        if (i + 1) % 10 == 0:
-            print(f"  {i + 1}/{n_actual} done")
-
-    print("\nRunning RAGAS evaluation...")
     dataset = EvaluationDataset(samples=ragas_samples)
     result = evaluate(
         dataset,
@@ -104,15 +101,16 @@ def run(n: int, seed: int) -> None:
         embeddings=ragas_embeddings,
     )
 
-    print(f"\nRAGAS Results ({n_actual} questions):")
-    print(f"  Faithfulness:     {result['faithfulness']:.3f}")
-    print(f"  Answer Relevancy: {result['answer_relevancy']:.3f}")
-    print(f"\nFull breakdown:\n{result.to_pandas()[['faithfulness', 'answer_relevancy']].to_string()}")
+    faithfulness = result["faithfulness"]
+    answer_relevancy = result["answer_relevancy"]
 
+    print(f"\nRAGAS Results ({len(sample)} questions):")
+    print(f"  Faithfulness:     {faithfulness:.3f}")
+    print(f"  Answer Relevancy: {answer_relevancy:.3f}")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--n", type=int, default=25, help="Number of questions to evaluate")
-    parser.add_argument("--seed", type=int, default=42)
-    args = parser.parse_args()
-    run(args.n, args.seed)
+    assert faithfulness >= MIN_FAITHFULNESS, (
+        f"Faithfulness {faithfulness:.3f} below threshold {MIN_FAITHFULNESS}"
+    )
+    assert answer_relevancy >= MIN_ANSWER_RELEVANCY, (
+        f"Answer Relevancy {answer_relevancy:.3f} below threshold {MIN_ANSWER_RELEVANCY}"
+    )

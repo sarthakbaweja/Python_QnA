@@ -167,3 +167,7 @@ python_qna/
 - Tag-based filtering: extract tags from user query, use as Qdrant payload pre-filter before vector search; or expose as a user-controlled dropdown in the frontend
 - Hybrid retrieval + reranking: combine dense vector search (current) with sparse BM25 keyword search, then rerank merged results with a cross-encoder (e.g. `BAAI/bge-reranker-base`) before passing context to the LLM
 - Semantic response caching: embed incoming queries, store query vector + response in Redis; on new queries, check cosine similarity against cached vectors and return cached response if above threshold — cuts latency and LLM cost for near-duplicate questions
+- Context recall eval: extend RAGAS suite with `ContextRecall` metric — uses Stack Overflow top-scored answer as ground truth to measure whether retrieved chunks contain sufficient information to answer the question
+- Answer correctness eval: compare LLM-generated answer against Stack Overflow accepted answer using an LLM judge scoring factual overlap (no reference implementation needed — ground truth already in Answers.csv)
+- Loop-until-dry adversarial eval: spawn multiple independent LLM judges per answer to refute faithfulness claims; flag answers where majority vote says hallucination — catches edge cases single-judge RAGAS misses
+- Latency profiling: instrument retrieval and LLM stages separately; assert p95 retrieval < 500ms and p95 end-to-end < 5s as part of the eval suite
