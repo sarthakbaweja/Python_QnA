@@ -166,3 +166,4 @@ python_qna/
 - Redis sessions: persist conversation state across container restarts
 - Tag-based filtering: extract tags from user query, use as Qdrant payload pre-filter before vector search; or expose as a user-controlled dropdown in the frontend
 - Hybrid retrieval + reranking: combine dense vector search (current) with sparse BM25 keyword search, then rerank merged results with a cross-encoder (e.g. `BAAI/bge-reranker-base`) before passing context to the LLM
+- Semantic response caching: embed incoming queries, store query vector + response in Redis; on new queries, check cosine similarity against cached vectors and return cached response if above threshold — cuts latency and LLM cost for near-duplicate questions
