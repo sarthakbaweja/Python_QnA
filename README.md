@@ -9,7 +9,7 @@ AI-powered Python Q&A grounded in Stack Overflow data. Ask any Python question a
 | Frontend | Streamlit (port 8501) |
 | Backend | FastAPI (port 8000) |
 | RAG Pipeline | LangChain + LangGraph |
-| LLM | Groq (`llama-3.1-70b-versatile`) |
+| LLM | Groq (`llama-3.3-70b-versatile`) |
 | Embeddings | FastEmbed BAAI/bge-small-en |
 | Vector DB | Qdrant Cloud (free tier, external) |
 
@@ -136,7 +136,7 @@ Response:
 | Variable | Default | Description |
 |---|---|---|
 | `GROQ_API_KEY` | **required** | Groq API key |
-| `GROQ_MODEL` | `llama-3.1-70b-versatile` | Groq model name |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model name |
 | `QDRANT_HOST` | `localhost` | Qdrant hostname (`<cluster>.qdrant.io` for Qdrant Cloud) |
 | `QDRANT_PORT` | `6333` | Qdrant port |
 | `QDRANT_API_KEY` | _(empty)_ | Qdrant Cloud API key — leave blank for local dev |

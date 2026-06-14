@@ -15,7 +15,7 @@ An AI-powered Python Programming Q&A Assistant for data science learners. Answer
 
 | Layer | Choice |
 |---|---|
-| LLM | Groq (`llama-3.1-70b-versatile`) |
+| LLM | Groq (`llama-3.3-70b-versatile`) |
 | Embeddings | FastEmbed (`BAAI/bge-small-en`) — no API key required |
 | Vector DB | Qdrant Cloud (free tier, external) |
 | RAG framework | LangChain + LangGraph |
@@ -305,7 +305,7 @@ BACKEND_URL=http://backend.railway.internal:8000
 | Variable | Default | Description |
 |---|---|---|
 | `GROQ_API_KEY` | **required** | Groq API key |
-| `GROQ_MODEL` | `llama-3.1-70b-versatile` | Groq model |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model |
 | `QDRANT_HOST` | `localhost` | Qdrant hostname |
 | `QDRANT_PORT` | `6333` | Qdrant port |
 | `QDRANT_API_KEY` | _(empty)_ | Qdrant Cloud API key |

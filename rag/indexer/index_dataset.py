@@ -3,6 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from fastembed import TextEmbedding
 
@@ -14,6 +15,7 @@ COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", "python_qna")
 VECTOR_SIZE = 384  # BAAI/bge-small-en output dimension
 BATCH_SIZE = 256
 DATA_DIR = os.getenv("DATA_DIR", "/app/data")
+INDEX_LIMIT = int(os.getenv("INDEX_LIMIT", "0"))  # 0 = no limit
 
 
 def get_client() -> QdrantClient:
@@ -26,8 +28,12 @@ def get_client() -> QdrantClient:
     return QdrantClient(host=host, port=port)
 
 
-def collection_exists(client: QdrantClient) -> bool:
-    return COLLECTION_NAME in [c.name for c in client.get_collections().collections]
+def collection_populated(client: QdrantClient) -> bool:
+    names = [c.name for c in client.get_collections().collections]
+    if COLLECTION_NAME not in names:
+        return False
+    count = client.get_collection(COLLECTION_NAME).vectors_count or 0
+    return count > 0
 
 
 def load_answers(answers_path: str) -> dict[int, list[dict]]:
@@ -36,6 +42,8 @@ def load_answers(answers_path: str) -> dict[int, list[dict]]:
         answers_path,
         usecols=["Id", "ParentId", "Score", "Body"],
         dtype={"Id": "int64", "ParentId": "int64", "Score": "float64", "Body": "str"},
+        encoding="utf-8",
+        encoding_errors="replace",
     )
     df["Score"] = df["Score"].fillna(0).astype(int)
     df = df.sort_values("Score", ascending=False)
@@ -46,15 +54,21 @@ def load_answers(answers_path: str) -> dict[int, list[dict]]:
 def run_indexing(questions_path: str, answers_path: str) -> None:
     client = get_client()
 
-    if collection_exists(client):
-        print(f"Collection '{COLLECTION_NAME}' already exists. Skipping.")
+    if collection_populated(client):
+        print(f"Collection '{COLLECTION_NAME}' already indexed. Skipping.")
         return
 
     print(f"Creating collection '{COLLECTION_NAME}'...")
-    client.create_collection(
-        collection_name=COLLECTION_NAME,
-        vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
-    )
+    try:
+        client.create_collection(
+            collection_name=COLLECTION_NAME,
+            vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+        )
+    except UnexpectedResponse as e:
+        if e.status_code == 409:
+            print(f"Collection '{COLLECTION_NAME}' already exists, continuing...")
+        else:
+            raise
 
     answers_by_qid = load_answers(answers_path)
     embedding_model = TextEmbedding(model_name="BAAI/bge-small-en")
@@ -69,12 +83,16 @@ def run_indexing(questions_path: str, answers_path: str) -> None:
         chunksize=BATCH_SIZE,
         usecols=["Id", "Title", "Body", "Score"],
         dtype={"Id": "int64", "Title": "str", "Body": "str", "Score": "float64"},
+        encoding="utf-8",
+        encoding_errors="replace",
     )
 
     for chunk in tqdm(reader, desc="Questions"):
         chunk["Score"] = chunk["Score"].fillna(0).astype(int)
 
         for _, row in chunk.iterrows():
+            if INDEX_LIMIT and total >= INDEX_LIMIT:
+                break
             q_id = int(row["Id"])
             answers = answers_by_qid.get(q_id, [])
             text = format_chunk(row.to_dict(), answers)
